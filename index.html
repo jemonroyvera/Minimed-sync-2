@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presentación: Informe de Egreso Temprano</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9; /* slate-100 */
+        }
+        .slide {
+            display: none;
+            animation: fadeIn 0.5s;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            /* CORRECCIÓN: Se añade un fondo blanco a cada diapositiva para evitar transparencias */
+            background-color: white;
+        }
+        .slide.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+            max-width: 300px;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-4xl">
+        <!-- Header -->
+        <header class="mb-6 text-center">
+            <h1 class="text-3xl sm:text-4xl font-bold text-slate-800">Informe de Egreso Temprano</h1>
+            <p class="text-lg text-slate-600 mt-1">Consultoría Egreso Temprano | Agosto 2025</p>
+        </header>
+
+        <!-- Slideshow Container -->
+        <div id="slideshow-container" class="bg-white rounded-xl shadow-lg overflow-hidden relative w-full" style="height: 550px;">
+            <!-- Slides will be dynamically inserted here by JS -->
+        </div>
+
+        <!-- Navigation -->
+        <div class="flex items-center justify-between mt-4 max-w-4xl w-full">
+            <button id="prevBtn" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 shadow-md disabled:bg-slate-300 disabled:cursor-not-allowed">
+                Anterior
+            </button>
+            <div id="slide-counter" class="text-slate-600 font-medium"></div>
+            <button id="nextBtn" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 shadow-md">
+                Siguiente
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const patients = [
+            { name: "Jazmina Moreno", id: "8-402-448", age: 54, sex: "Mujer", admission: "2025-07-21", status: "Pendiente", diagnosis: ["Shock séptico - bacteriemia por K. pneumoniae", "Artritis séptica rodilla derecha", "Crisis falcémica", "Úlcera venosa crónica en MII"], comments: "Múltiples lavados articulares y artrotomías. Se indica anticoagulación por TVP. El 18/8 presenta fiebre, se reinicia Meropenem. El 19/8 nueva artrotomía con salida de material purulento." },
+            { name: "Beatriz Helena Chang Moreno", id: "9-51-418", age: 92, sex: "Mujer", admission: "2025-08-05", status: "Pendiente", diagnosis: ["Encefalopatía", "Hiperamonemia", "Emergencia hipertensiva", "Neumonía de la comunidad"], comments: "Tolera vía oral. Cursa con retención de azotados. Presentó pico febril. Cuadro empeora por ascitis y lesión renal aguda." },
+            { name: "Valentina Hernandez", id: "9-50-309", age: 87, sex: "Mujer", admission: "2025-07-20", discharge: "2025-08-06", status: "Alta", diagnosis: ["Neumonía nosocomial", "ICC FEVI 18%", "Miocardiopatía dilatada"], comments: "Paciente en cuidados paliativos desde su ingreso." },
+            { name: "Oderay González Ruíz", id: "8-75-964", age: 73, sex: "Mujer", admission: "2025-07-28", discharge: "2025-08-05", status: "Alta", diagnosis: ["Gastroenteritis aguda", "Cáncer de mama en Quimioterapia", "Insuficiencia cardiaca crónica"], comments: "Oportunidad de egreso anticipado. Perfil ideal para programa de 'Hospitalización en casa'." },
+            { name: "Alicia Russo Beitia Ibañez", id: "8-45-528", age: 99, sex: "Mujer", admission: "2025-08-06", discharge: "2025-08-08", status: "Alta", diagnosis: ["Efusión pleural izquierda", "Cáncer de pulmón (Disnea)"], comments: "Se realiza toracocentesis el 7/8. Se da de alta el 8/8 con seguimiento ambulatorio." },
+            { name: "Modesta Velasquez Jimenez", id: "8-40-371", age: 101, sex: "Mujer", admission: "2025-08-06", discharge: "2025-08-08", status: "Alta", diagnosis: ["Traumatismo en la cabeza"], comments: "Ingresa por TCE. CT con higroma bilateral. Adecuada evolución, se da de alta el 8/8." },
+            { name: "James Archibold Marshall", id: "3-51-939", age: 78, sex: "Hombre", admission: "2025-08-07", discharge: "2025-08-08", status: "Alta", diagnosis: ["ECV pontino izquierdo", "Emergencia HT"], comments: "Alta el 8 de agosto." },
+            { name: "María Valencia De Bermudez", id: "E-8-25002", age: 101, sex: "Mujer", admission: "2025-08-11", discharge: "2025-08-15", status: "Alta", diagnosis: ["Trauma lumbo sacro", "Hipertensión arterial", "Secuelas de ECV"], comments: "CT muestra fractura en L1. Se realiza terapia de dolor lumbar el 14/8. Alta el 15/8." },
+            { name: "Lilica Dawner", id: "E-8-71880", age: 89, sex: "Mujer", admission: "2025-08-12", discharge: "2025-08-17", status: "Alta", diagnosis: ["Pseudoaneurisma de arteria femoral", "Diabetes mellitus tipo 2"], comments: "Cirugía el 12/8. Presenta sangrado el 15/8, requiriendo nueva exploración. Se da egreso el 17/8." },
+            { name: "Rosina Vergara Ruiz", id: "8-109-804", age: 82, sex: "Mujer", admission: "2025-08-18", status: "Pendiente", diagnosis: ["Pérdida de peso + anemia", "Lesión renal aguda"], comments: "Ingresa por anemia severa. Se transfunden 2 U de GRE. Plan de estudio endoscópico." },
+            { name: "Angélica Hammond Rudder", id: "8-154-399", age: 80, sex: "Mujer", admission: "2025-08-17", status: "Pendiente", diagnosis: ["Neumonía adquirida de la comunidad", "Falla cardiaca"], comments: "CAT de tórax muestra infiltrados. FEVI 61% con disfunción diastólica." }
+        ];
+
+        const slideshowContainer = document.getElementById('slideshow-container');
+
+        // --- 1. Calculate Stats & Create Summary Slide ---
+        const totalPatients = patients.length;
+        const altaCount = patients.filter(p => p.status === 'Alta').length;
+        const pendienteCount = totalPatients - altaCount;
+        const mujeresCount = patients.filter(p => p.sex === 'Mujer').length;
+        const hombresCount = totalPatients - mujeresCount;
+
+        const summarySlideHTML = `
+            <div class="slide p-6 sm:p-8 flex flex-col justify-center items-center h-full">
+                <h2 class="text-2xl font-bold text-indigo-700 mb-8">Resumen General de Pacientes</h2>
+                <div class="flex flex-col md:flex-row gap-8 w-full justify-around items-center">
+                    <!-- Status Chart -->
+                    <div class="flex flex-col items-center text-center">
+                        <h3 class="text-lg font-semibold text-slate-600 mb-2">Estado de Egreso</h3>
+                        <div class="chart-container">
+                            <canvas id="statusChart"></canvas>
+                        </div>
+                    </div>
+                    <!-- Gender Chart -->
+                    <div class="flex flex-col items-center text-center">
+                        <h3 class="text-lg font-semibold text-slate-600 mb-2">Distribución por Sexo</h3>
+                        <div class="chart-container">
+                            <canvas id="genderChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        slideshowContainer.innerHTML += summarySlideHTML;
+
+        // --- 2. Create Patient Slides ---
+        patients.forEach(patient => {
+            const dischargeHTML = patient.discharge ? `<div class="text-sm text-slate-500"><strong>Alta:</strong> ${patient.discharge}</div>` : '';
+            const statusColor = patient.status === 'Alta' ? 'green' : 'red';
+            const slideHTML = `
+                <div class="slide p-6 sm:p-8 h-full">
+                    <div class="flex items-start justify-between mb-4">
+                        <h2 class="text-2xl font-bold text-indigo-600">${patient.name}</h2>
+                        <span class="px-3 py-1 text-xs font-semibold text-${statusColor}-800 bg-${statusColor}-100 rounded-full">${patient.status}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-slate-600 mb-4">
+                        <div class="text-sm"><strong>ID:</strong> ${patient.id}</div>
+                        <div class="text-sm"><strong>Edad:</strong> ${patient.age}</div>
+                        <div class="text-sm"><strong>Sexo:</strong> ${patient.sex}</div>
+                        <div class="text-sm"><strong>Ingreso:</strong> ${patient.admission}</div>
+                        ${dischargeHTML}
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 pt-6 border-t border-slate-200" style="height: calc(100% - 120px); overflow-y: auto;">
+                        <div>
+                            <h3 class="font-semibold text-slate-800 text-lg mb-2">Diagnóstico Principal</h3>
+                            <ul class="list-disc list-inside text-slate-600 text-sm space-y-1">${patient.diagnosis.map(d => `<li>${d}</li>`).join('')}</ul>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-slate-800 text-lg mb-2">Evolución y Comentarios</h3>
+                            <p class="text-sm text-slate-600 leading-relaxed">${patient.comments}</p>
+                        </div>
+                    </div>
+                </div>`;
+            slideshowContainer.innerHTML += slideHTML;
+        });
+
+        // --- 3. Navigation and Chart Logic ---
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const slideCounter = document.getElementById('slide-counter');
+
+        function showSlide(n) {
+            slides.forEach(slide => slide.classList.remove('active'));
+            slides[n].classList.add('active');
+            
+            if (n === 0) {
+                slideCounter.textContent = `Resumen`;
+            } else {
+                slideCounter.textContent = `Paciente ${n} de ${totalSlides - 1}`;
+            }
+            
+            prevBtn.disabled = n === 0;
+            nextBtn.disabled = n === totalSlides - 1;
+        }
+
+        prevBtn.addEventListener('click', () => { if (currentSlide > 0) { currentSlide--; showSlide(currentSlide); } });
+        nextBtn.addEventListener('click', () => { if (currentSlide < totalSlides - 1) { currentSlide++; showSlide(currentSlide); } });
+
+        showSlide(currentSlide);
+
+        // Chart.js implementation
+        new Chart(document.getElementById('statusChart').getContext('2d'), {
+            type: 'doughnut',
+            data: { 
+                labels: ['Con Alta', 'Pendientes'], 
+                datasets: [{ 
+                    data: [altaCount, pendienteCount], 
+                    backgroundColor: ['#10b981', '#ef4444'], 
+                    borderColor: '#ffffff', 
+                    borderWidth: 2 
+                }] 
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                plugins: { 
+                    legend: { 
+                        position: 'bottom' 
+                    } 
+                } 
+            }
+        });
+
+        new Chart(document.getElementById('genderChart').getContext('2d'), {
+            type: 'doughnut',
+            data: { 
+                labels: ['Mujeres', 'Hombres'], 
+                datasets: [{ 
+                    data: [mujeresCount, hombresCount], 
+                    backgroundColor: ['#6366f1', '#3b82f6'], 
+                    borderColor: '#ffffff', 
+                    borderWidth: 2 
+                }] 
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                plugins: { 
+                    legend: { 
+                        position: 'bottom' 
+                    } 
+                } 
+            }
+        });
+    </script>
+</body>
+</html>
