@@ -3,216 +3,334 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Presentación: Informe de Egreso Temprano</title>
+    <title>Minimed - Panel de Egreso Temprano</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony (Light gray, dark blue, with green/yellow/red accents) -->
+    <!-- Application Structure Plan: A single-page dashboard structure was chosen for its effectiveness in presenting data from general to specific. The flow starts with high-level Key Performance Indicators (KPIs) for a quick snapshot. It's followed by interactive visualizations (Donut and Bar charts) for an overview of patient status and stay durations. The core of the app is a filterable patient detail table that allows users to drill down into specific cases via a modal window. This layered approach is highly intuitive for medical and administrative staff who need both a quick overview and the ability to conduct detailed analysis without leaving the page. -->
+    <!-- Visualization & Content Choices: 
+        - KPIs: Inform goal -> HTML Cards -> No interaction -> Justification: Provides an immediate, scannable summary of the most critical metrics.
+        - Semaphore Status: Inform proportion goal -> Donut Chart (Chart.js) -> Hover for details, click to filter -> Justification: Best method to show parts of a whole, making the distribution of patient statuses instantly clear.
+        - Stay vs. Ideal: Compare goal -> Grouped Bar Chart (Chart.js) -> Hover for details -> Justification: Standard and most effective way to compare actual vs. ideal values across multiple patients.
+        - Patient Details: Organize/Explore goal -> Filterable HTML Table + Modal -> Filter by dropdowns, click row for modal -> Justification: A filterable table is essential for navigating lists. The modal keeps the main UI clean while providing comprehensive details on demand.
+        - Library/Method: Chart.js for all charts (Canvas-based). HTML/Tailwind for all structural and informational elements.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f1f5f9; /* slate-100 */
+            background-color: #f4f7f9;
         }
-        .slide {
-            display: none;
-            animation: fadeIn 0.5s;
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            /* CORRECCIÓN: Se añade un fondo blanco a cada diapositiva para evitar transparencias */
-            background-color: white;
-        }
-        .slide.active {
-            display: block;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.98); }
-            to { opacity: 1; transform: scale(1); }
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         .chart-container {
             position: relative;
-            height: 300px;
             width: 100%;
-            max-width: 300px;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 350px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .modal-backdrop {
+            transition: opacity 0.3s ease;
+        }
+        .modal-content {
+            transition: transform 0.3s ease;
         }
     </style>
 </head>
-<body class="bg-slate-100 flex flex-col items-center justify-center min-h-screen p-4">
+<body class="text-gray-800">
 
-    <div class="w-full max-w-4xl">
-        <!-- Header -->
-        <header class="mb-6 text-center">
-            <h1 class="text-3xl sm:text-4xl font-bold text-slate-800">Informe de Egreso Temprano</h1>
-            <p class="text-lg text-slate-600 mt-1">Consultoría Egreso Temprano | Agosto 2025</p>
+    <div id="app" class="container mx-auto p-4 md:p-8">
+
+        <header class="text-center mb-10">
+            <h1 class="text-3xl md:text-4xl font-bold text-blue-800">Panel de Gestión de Egreso Temprano</h1>
+            <p class="text-gray-600 mt-2">Análisis interactivo del estado y estancia de pacientes de Minimed.</p>
         </header>
 
-        <!-- Slideshow Container -->
-        <div id="slideshow-container" class="bg-white rounded-xl shadow-lg overflow-hidden relative w-full" style="height: 550px;">
-            <!-- Slides will be dynamically inserted here by JS -->
-        </div>
+        <main>
+            <section id="kpis" class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-10">
+            </section>
 
-        <!-- Navigation -->
-        <div class="flex items-center justify-between mt-4 max-w-4xl w-full">
-            <button id="prevBtn" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 shadow-md disabled:bg-slate-300 disabled:cursor-not-allowed">
-                Anterior
-            </button>
-            <div id="slide-counter" class="text-slate-600 font-medium"></div>
-            <button id="nextBtn" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 shadow-md">
-                Siguiente
-            </button>
+            <section id="visualizations" class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-bold text-center mb-4 text-blue-800">Estado de Pacientes (Semáforo)</h3>
+                    <p class="text-center text-gray-600 mb-4 text-sm">Esta gráfica muestra la distribución de los pacientes según el indicador de semáforo, que compara la estancia real con la ideal. Permite identificar rápidamente cuántos pacientes están dentro, cerca o por encima de su tiempo de estancia esperado.</p>
+                    <div class="chart-container">
+                        <canvas id="semaphoreChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-bold text-center mb-4 text-blue-800">Estancia Real vs. Ideal</h3>
+                     <p class="text-center text-gray-600 mb-4 text-sm">Comparación de los días de estancia reales frente a los días ideales para los pacientes dados de alta. Un valor real superior al ideal indica una oportunidad de mejora en la gestión del egreso. Interactúa con el gráfico para ver detalles.</p>
+                    <div class="chart-container h-80 md:h-96 max-h-[400px]">
+                        <canvas id="stayChart"></canvas>
+                    </div>
+                </div>
+            </section>
+            
+            <section id="patient-details" class="bg-white p-6 rounded-lg shadow-md">
+                <h3 class="text-xl font-bold mb-2 text-blue-800">Detalle de Pacientes</h3>
+                <p class="text-gray-600 mb-6">Utiliza los filtros para explorar la lista de pacientes. Haz clic en cualquier fila para ver un resumen detallado del diagnóstico y las recomendaciones médicas, lo que facilita un análisis caso por caso y la planificación de acciones.</p>
+                <div class="flex flex-wrap gap-4 mb-6">
+                    <div class="flex-grow">
+                        <label for="doctorFilter" class="block text-sm font-medium text-gray-700">Filtrar por Médico</label>
+                        <select id="doctorFilter" class="mt-1 block w-full p-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <option value="all">Todos los Médicos</option>
+                        </select>
+                    </div>
+                    <div class="flex-grow">
+                        <label for="semaphoreFilter" class="block text-sm font-medium text-gray-700">Filtrar por Semáforo</label>
+                        <select id="semaphoreFilter" class="mt-1 block w-full p-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <option value="all">Todos los Estados</option>
+                            <option value="🟢">🟢 Verde</option>
+                            <option value="🟡">🟡 Amarillo</option>
+                            <option value="🔴">🔴 Rojo</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Edad</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Médico</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Estancia (Días)</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Semáforo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="patientTableBody" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+    </div>
+
+    <div id="patientModal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+        <div class="modal-backdrop fixed inset-0 bg-black bg-opacity-50" onclick="hidePatientModal()"></div>
+        <div class="modal-content bg-white rounded-lg shadow-xl m-4 max-w-2xl w-full max-h-[90vh] overflow-y-auto transform scale-95">
+            <div class="p-6">
+                <div class="flex justify-between items-start">
+                    <h2 id="modalPatientName" class="text-2xl font-bold text-blue-800"></h2>
+                    <button onclick="hidePatientModal()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+                </div>
+                <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div class="bg-gray-100 p-3 rounded-md"><strong>Edad:</strong> <span id="modalPatientAge"></span></div>
+                    <div class="bg-gray-100 p-3 rounded-md"><strong>Ingreso:</strong> <span id="modalAdmissionDate"></span></div>
+                    <div class="bg-gray-100 p-3 rounded-md"><strong>Estancia:</strong> <span id="modalStay"></span></div>
+                </div>
+                <div class="mt-6">
+                    <h4 class="font-bold text-lg text-blue-800 mb-2">Diagnóstico Principal</h4>
+                    <p id="modalDiagnosis" class="bg-blue-50 p-4 rounded-md whitespace-pre-wrap text-sm"></p>
+                </div>
+                <div class="mt-6">
+                    <h4 class="font-bold text-lg text-blue-800 mb-2">Análisis y Recomendaciones</h4>
+                    <p id="modalRecommendations" class="bg-green-50 p-4 rounded-md whitespace-pre-wrap text-sm"></p>
+                </div>
+            </div>
         </div>
     </div>
 
+
     <script>
-        const patients = [
-            { name: "Jazmina Moreno", id: "8-402-448", age: 54, sex: "Mujer", admission: "2025-07-21", status: "Pendiente", diagnosis: ["Shock séptico - bacteriemia por K. pneumoniae", "Artritis séptica rodilla derecha", "Crisis falcémica", "Úlcera venosa crónica en MII"], comments: "Múltiples lavados articulares y artrotomías. Se indica anticoagulación por TVP. El 18/8 presenta fiebre, se reinicia Meropenem. El 19/8 nueva artrotomía con salida de material purulento." },
-            { name: "Beatriz Helena Chang Moreno", id: "9-51-418", age: 92, sex: "Mujer", admission: "2025-08-05", status: "Pendiente", diagnosis: ["Encefalopatía", "Hiperamonemia", "Emergencia hipertensiva", "Neumonía de la comunidad"], comments: "Tolera vía oral. Cursa con retención de azotados. Presentó pico febril. Cuadro empeora por ascitis y lesión renal aguda." },
-            { name: "Valentina Hernandez", id: "9-50-309", age: 87, sex: "Mujer", admission: "2025-07-20", discharge: "2025-08-06", status: "Alta", diagnosis: ["Neumonía nosocomial", "ICC FEVI 18%", "Miocardiopatía dilatada"], comments: "Paciente en cuidados paliativos desde su ingreso." },
-            { name: "Oderay González Ruíz", id: "8-75-964", age: 73, sex: "Mujer", admission: "2025-07-28", discharge: "2025-08-05", status: "Alta", diagnosis: ["Gastroenteritis aguda", "Cáncer de mama en Quimioterapia", "Insuficiencia cardiaca crónica"], comments: "Oportunidad de egreso anticipado. Perfil ideal para programa de 'Hospitalización en casa'." },
-            { name: "Alicia Russo Beitia Ibañez", id: "8-45-528", age: 99, sex: "Mujer", admission: "2025-08-06", discharge: "2025-08-08", status: "Alta", diagnosis: ["Efusión pleural izquierda", "Cáncer de pulmón (Disnea)"], comments: "Se realiza toracocentesis el 7/8. Se da de alta el 8/8 con seguimiento ambulatorio." },
-            { name: "Modesta Velasquez Jimenez", id: "8-40-371", age: 101, sex: "Mujer", admission: "2025-08-06", discharge: "2025-08-08", status: "Alta", diagnosis: ["Traumatismo en la cabeza"], comments: "Ingresa por TCE. CT con higroma bilateral. Adecuada evolución, se da de alta el 8/8." },
-            { name: "James Archibold Marshall", id: "3-51-939", age: 78, sex: "Hombre", admission: "2025-08-07", discharge: "2025-08-08", status: "Alta", diagnosis: ["ECV pontino izquierdo", "Emergencia HT"], comments: "Alta el 8 de agosto." },
-            { name: "María Valencia De Bermudez", id: "E-8-25002", age: 101, sex: "Mujer", admission: "2025-08-11", discharge: "2025-08-15", status: "Alta", diagnosis: ["Trauma lumbo sacro", "Hipertensión arterial", "Secuelas de ECV"], comments: "CT muestra fractura en L1. Se realiza terapia de dolor lumbar el 14/8. Alta el 15/8." },
-            { name: "Lilica Dawner", id: "E-8-71880", age: 89, sex: "Mujer", admission: "2025-08-12", discharge: "2025-08-17", status: "Alta", diagnosis: ["Pseudoaneurisma de arteria femoral", "Diabetes mellitus tipo 2"], comments: "Cirugía el 12/8. Presenta sangrado el 15/8, requiriendo nueva exploración. Se da egreso el 17/8." },
-            { name: "Rosina Vergara Ruiz", id: "8-109-804", age: 82, sex: "Mujer", admission: "2025-08-18", status: "Pendiente", diagnosis: ["Pérdida de peso + anemia", "Lesión renal aguda"], comments: "Ingresa por anemia severa. Se transfunden 2 U de GRE. Plan de estudio endoscópico." },
-            { name: "Angélica Hammond Rudder", id: "8-154-399", age: 80, sex: "Mujer", admission: "2025-08-17", status: "Pendiente", diagnosis: ["Neumonía adquirida de la comunidad", "Falla cardiaca"], comments: "CAT de tórax muestra infiltrados. FEVI 61% con disfunción diastólica." }
+        const patientData = [
+            { id: 1, name: "Jazmina Moreno", age: 54, admissionDate: "2025-07-21", dischargeDate: null, doctor: "Dr. Aparicio", stay: 30, idealStay: 25, semaphore: "🔴", diagnosis: "1. Shock septico - bacteriemia por k.pneumoniae sp pneumoniae\n(Prob. Foco urinario por urocultivo + el 27/725, HC sp + 29/7/25\n- Artritis séptica rodilla derecha (K. Pneumoniae)\n-Siembra hematógena a columna vertebral \n2.Estado post artrotomia + lavado articular (5 y 7/8/25)\n2. Crisis falcémica (Dolorosa y hemolítica) \n3. Úlcera venosa crónica en MII", recommendations: "Se identificó un retraso de 6 días en la toma de cultivos de sangre, clave para identificar la fuente de infección a tiempo.\n\nEl tratamiento antimicrobiano inicial (Clindamicina) no estaba en las dosis correspondientes, lo que pudo prolongar la estancia.\n\nRecomendación: Protocolizar la toma de cultivos en sospecha de sepsis desde el ingreso y asegurar la consulta temprana con infectología para optimizar el tratamiento. Mejorar la comunicación interdisciplinaria para evitar omisiones en el tratamiento recomendado por especialistas." },
+            { id: 2, name: "Beatriz Helena Chang Moreno", age: 92, admissionDate: "2025-08-05", dischargeDate: null, doctor: "Dr. Toribio", stay: 15, idealStay: 12, semaphore: "🔴", diagnosis: "1.Encefalopatia \n2.Hiperamonemica \n3.Emergencia hipertensiva (ECV isquémico menor)??\n4.Neumonía de la comunidad \n5.Bacteriuria \n6.Lesión renal aguda?? \n7.Hepatopatia crónica \n8.Diabetes mellitus tipo 2", recommendations: "El manejo se ha prolongado debido al componente multifactorial. La paciente ha mejorado con lactulosa en el contexto de encefalopatía hepática.\n\nLa lesión renal es esperada y se podrían diferir las evaluaciones por subespecialistas para no retrasar el egreso.\n\nRecomendación: Priorizar el manejo de la encefalopatía y optimizar la hidratación. Agilizar procedimientos clave como la paracentesis para descartar peritonitis bacteriana espontánea, que aumenta la mortalidad." },
+            { id: 3, name: "Valentina Hernandez", age: 87, admissionDate: "2025-07-20", dischargeDate: "2025-08-06", doctor: "Dr. González", stay: 17, idealStay: 15, semaphore: "🔴", diagnosis: "1. Neumonía nosocomial \n2. ICC FEVI 18% \n3. Miocardiopatía dilatada \n4. Enfermedad coronaria ateroesclerótica", recommendations: "Paciente con pronóstico reservado y alta carga de enfermedad cardíaca.\n\nRecomendación: Iniciar contacto temprano con el equipo de cuidados paliativos y la familia para planificar una transición oportuna y temprana. Definir el paquete de servicios domiciliarios requerido (enfermería, terapia, oxígeno)." },
+            { id: 4, name: "Oderay González Ruíz", age: 73, admissionDate: "2025-07-28", dischargeDate: "2025-08-05", doctor: "Dr. Salas", stay: 8, idealStay: 7, semaphore: "🟡", diagnosis: "-Gastroenteritis aguda por E.Coli enteropatogénica y Rotavirus \n-Deshidratación \n-Cancer de mama operado y en Quimioterapia\n-Insuficiencia cardiaca crónica \n-Dismovilidad 3A por osteoartritis de rodilla derecha\n-Retención urinaria \n-Infección urinaria", recommendations: "El informe original no detalla recomendaciones específicas para este caso.\n\nOportunidad: Es fundamental mejorar la documentación para asegurar que todos los casos, incluso los de menor estancia, tengan un plan de egreso y recomendaciones claras para la continuidad del cuidado." },
+            { id: 5, name: "Alicia Russo Beitia Ibañez", age: 99, admissionDate: "2025-08-06", dischargeDate: "2025-08-08", doctor: "Dra. Botello", stay: 2, idealStay: 3, semaphore: "🟢", diagnosis: "1. Efusión pleural izquierda por Cáncer de pulmón (Disnea)", recommendations: "Paciente conocida por efusiones pleurales malignas a repetición y candidata a cuidados paliativos exclusivos por estenosis aórtica severa.\n\nRecomendación: Establecer un plan de manejo ambulatorio. Coordinar con radiología intervencionista o neumología para realizar toracocentesis en urgencias y dar egreso sin necesidad de hospitalizar. Formalizar el plan de cuidados paliativos con la familia." },
+            { id: 6, name: "Modesta Velasquez Jimenez", age: 101, admissionDate: "2025-08-06", dischargeDate: "2025-08-08", doctor: "Dr. Salas", stay: 2, idealStay: 2, semaphore: "🟢", diagnosis: "Traumatismo en la cabeza", recommendations: "El manejo fue oportuno, con vigilancia por 24-48 horas.\n\nRecomendación: El enfoque principal debe ser la prevención secundaria. Implementar y comunicar a la familia y cuidadores un plan detallado de prevención de caídas para esta paciente frágil." },
+            { id: 7, name: "James ALian Archibold Marshall", age: 78, admissionDate: "2025-08-07", dischargeDate: "2025-08-08", doctor: "Dr. González", stay: 1, idealStay: 2, semaphore: "🟢", diagnosis: "Enfermedad cerebrovascular pontino izquierdo. Emergencia Hipertensiva.", recommendations: "Manejo oportuno de un Accidente cerebrovascular isquémico transitorio (AIT) con vigilancia adecuada.\n\nRecomendación: Coordinar un seguimiento integral y multidisciplinario al egreso que incluya citas con geriatría, nutrición y fisioterapia para prevenir futuros eventos." },
+            { id: 8, name: "María Valencia De Bermudez", age: 101, admissionDate: "2025-08-11", dischargeDate: "2025-08-15", doctor: "Dr. Toribio", stay: 4, idealStay: 5, semaphore: "🟢", diagnosis: "1. Trauma lumbo-sacro.\n2. Comorbilidades: Hipertensión, secuelas de ECV, cáncer de colon operado.", recommendations: "Se identificó una brecha en la comunicación, ya que la familia no había hablado directamente con el médico tratante sobre el plan.\n\nRecomendación: Asegurar que el médico tratante sea siempre el principal comunicador del plan terapéutico a los familiares para garantizar el entendimiento y el consentimiento informado." },
+            { id: 9, name: "Lilica Dawner", age: 89, admissionDate: "2025-08-12", dischargeDate: "2025-08-17", doctor: "Dr. Aparicio", stay: 5, idealStay: 6, semaphore: "🟢", diagnosis: "1. Pseudoaneurisma de arteria femoral izquierda.\n2. Comorbilidades: Diabetes mellitus tipo 2, Hipertensión arterial.", recommendations: "Se cuestiona la decisión de reintervenir quirúrgicamente sin una evaluación paraclínica más exhaustiva que confirmara sangrado activo, dado que los hallazgos fueron solo coágulos residuales.\n\nRecomendación: Mejorar la comunicación con los familiares sobre los riesgos y beneficios de procedimientos invasivos en pacientes geriátricos. Considerar paraclínicos adicionales (ej. tromboelastograma) para guiar decisiones complejas." },
+            { id: 10, name: "Rosina Vergara Ruiz", age: 82, admissionDate: "2025-08-18", dischargeDate: null, doctor: "Dr. Salas", stay: 2, idealStay: 4, semaphore: "🟢", diagnosis: "1. En estudio por pérdida de peso, anemia microcítica hipocrómica y cambio en hábitos intestinales.\n2. Lesión renal aguda.", recommendations: "La estancia hospitalaria debe ser corta y enfocada en el diagnóstico.\n\nRecomendación: Agilizar los estudios diagnósticos (endoscopia, histopatología) para llegar a un diagnóstico definitivo y planificar el tratamiento, preferiblemente de forma ambulatoria si es posible." },
+            { id: 11, name: "Angélica Rosa Hammond Rudder", age: 80, admissionDate: "2025-08-17", dischargeDate: null, doctor: "Dr. González", stay: 3, idealStay: 5, semaphore: "🟢", diagnosis: "1. Neumonía adquirida en la comunidad.\n2. Falla cardíaca secundaria.", recommendations: "El plan de tratamiento es claro.\n\nRecomendación: Completar el ciclo de antimicrobianos y monitorizar la respuesta clínica para asegurar un egreso oportuno y seguro en la fecha probable." }
         ];
 
-        const slideshowContainer = document.getElementById('slideshow-container');
-
-        // --- 1. Calculate Stats & Create Summary Slide ---
-        const totalPatients = patients.length;
-        const altaCount = patients.filter(p => p.status === 'Alta').length;
-        const pendienteCount = totalPatients - altaCount;
-        const mujeresCount = patients.filter(p => p.sex === 'Mujer').length;
-        const hombresCount = totalPatients - mujeresCount;
-
-        const summarySlideHTML = `
-            <div class="slide p-6 sm:p-8 flex flex-col justify-center items-center h-full">
-                <h2 class="text-2xl font-bold text-indigo-700 mb-8">Resumen General de Pacientes</h2>
-                <div class="flex flex-col md:flex-row gap-8 w-full justify-around items-center">
-                    <!-- Status Chart -->
-                    <div class="flex flex-col items-center text-center">
-                        <h3 class="text-lg font-semibold text-slate-600 mb-2">Estado de Egreso</h3>
-                        <div class="chart-container">
-                            <canvas id="statusChart"></canvas>
-                        </div>
-                    </div>
-                    <!-- Gender Chart -->
-                    <div class="flex flex-col items-center text-center">
-                        <h3 class="text-lg font-semibold text-slate-600 mb-2">Distribución por Sexo</h3>
-                        <div class="chart-container">
-                            <canvas id="genderChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        slideshowContainer.innerHTML += summarySlideHTML;
-
-        // --- 2. Create Patient Slides ---
-        patients.forEach(patient => {
-            const dischargeHTML = patient.discharge ? `<div class="text-sm text-slate-500"><strong>Alta:</strong> ${patient.discharge}</div>` : '';
-            const statusColor = patient.status === 'Alta' ? 'green' : 'red';
-            const slideHTML = `
-                <div class="slide p-6 sm:p-8 h-full">
-                    <div class="flex items-start justify-between mb-4">
-                        <h2 class="text-2xl font-bold text-indigo-600">${patient.name}</h2>
-                        <span class="px-3 py-1 text-xs font-semibold text-${statusColor}-800 bg-${statusColor}-100 rounded-full">${patient.status}</span>
-                    </div>
-                    <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-slate-600 mb-4">
-                        <div class="text-sm"><strong>ID:</strong> ${patient.id}</div>
-                        <div class="text-sm"><strong>Edad:</strong> ${patient.age}</div>
-                        <div class="text-sm"><strong>Sexo:</strong> ${patient.sex}</div>
-                        <div class="text-sm"><strong>Ingreso:</strong> ${patient.admission}</div>
-                        ${dischargeHTML}
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 pt-6 border-t border-slate-200" style="height: calc(100% - 120px); overflow-y: auto;">
-                        <div>
-                            <h3 class="font-semibold text-slate-800 text-lg mb-2">Diagnóstico Principal</h3>
-                            <ul class="list-disc list-inside text-slate-600 text-sm space-y-1">${patient.diagnosis.map(d => `<li>${d}</li>`).join('')}</ul>
-                        </div>
-                        <div>
-                            <h3 class="font-semibold text-slate-800 text-lg mb-2">Evolución y Comentarios</h3>
-                            <p class="text-sm text-slate-600 leading-relaxed">${patient.comments}</p>
-                        </div>
-                    </div>
-                </div>`;
-            slideshowContainer.innerHTML += slideHTML;
+        document.addEventListener('DOMContentLoaded', () => {
+            renderKPIs();
+            createCharts();
+            populateFilters();
+            renderTable(patientData);
+            setupEventListeners();
         });
 
-        // --- 3. Navigation and Chart Logic ---
-        let currentSlide = 0;
-        const slides = document.querySelectorAll('.slide');
-        const totalSlides = slides.length;
-        const prevBtn = document.getElementById('prevBtn');
-        const nextBtn = document.getElementById('nextBtn');
-        const slideCounter = document.getElementById('slide-counter');
+        function renderKPIs() {
+            const kpiContainer = document.getElementById('kpis');
+            const totalPatients = patientData.length;
+            const hospitalized = patientData.filter(p => p.dischargeDate === null).length;
+            const discharged = totalPatients - hospitalized;
+            const avgAge = patientData.reduce((sum, p) => sum + p.age, 0) / totalPatients;
 
-        function showSlide(n) {
-            slides.forEach(slide => slide.classList.remove('active'));
-            slides[n].classList.add('active');
-            
-            if (n === 0) {
-                slideCounter.textContent = `Resumen`;
-            } else {
-                slideCounter.textContent = `Paciente ${n} de ${totalSlides - 1}`;
-            }
-            
-            prevBtn.disabled = n === 0;
-            nextBtn.disabled = n === totalSlides - 1;
+            const kpiData = [
+                { label: 'Total de Pacientes', value: totalPatients, icon: '👥' },
+                { label: 'Pacientes Hospitalizados', value: hospitalized, icon: '🏥' },
+                { label: 'Pacientes de Alta', value: discharged, icon: '🏠' },
+                { label: 'Edad Promedio', value: `${avgAge.toFixed(1)} años`, icon: '🎂' }
+            ];
+
+            kpiContainer.innerHTML = kpiData.map(kpi => `
+                <div class="bg-white p-4 rounded-lg shadow-md text-center">
+                    <div class="text-3xl mb-2">${kpi.icon}</div>
+                    <div class="text-2xl font-bold text-blue-800">${kpi.value}</div>
+                    <div class="text-sm text-gray-600">${kpi.label}</div>
+                </div>
+            `).join('');
         }
 
-        prevBtn.addEventListener('click', () => { if (currentSlide > 0) { currentSlide--; showSlide(currentSlide); } });
-        nextBtn.addEventListener('click', () => { if (currentSlide < totalSlides - 1) { currentSlide++; showSlide(currentSlide); } });
+        function createCharts() {
+            const semaphoreCounts = patientData.reduce((acc, p) => {
+                if (p.semaphore === '🟢') acc.green++;
+                else if (p.semaphore === '🟡') acc.yellow++;
+                else if (p.semaphore === '🔴') acc.red++;
+                return acc;
+            }, { green: 0, yellow: 0, red: 0 });
 
-        showSlide(currentSlide);
+            new Chart(document.getElementById('semaphoreChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Verde (Estancia Ideal)', 'Amarillo (Próximo a Exceso)', 'Rojo (Estancia en Exceso)'],
+                    datasets: [{
+                        data: [semaphoreCounts.green, semaphoreCounts.yellow, semaphoreCounts.red],
+                        backgroundColor: ['#28a745', '#ffc107', '#dc3545'],
+                        borderColor: '#ffffff',
+                        borderWidth: 4,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '60%',
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
 
-        // Chart.js implementation
-        new Chart(document.getElementById('statusChart').getContext('2d'), {
-            type: 'doughnut',
-            data: { 
-                labels: ['Con Alta', 'Pendientes'], 
-                datasets: [{ 
-                    data: [altaCount, pendienteCount], 
-                    backgroundColor: ['#10b981', '#ef4444'], 
-                    borderColor: '#ffffff', 
-                    borderWidth: 2 
-                }] 
-            },
-            options: { 
-                responsive: true, 
-                maintainAspectRatio: false, 
-                plugins: { 
-                    legend: { 
-                        position: 'bottom' 
-                    } 
-                } 
+            const dischargedPatients = patientData.filter(p => p.dischargeDate !== null);
+            new Chart(document.getElementById('stayChart'), {
+                type: 'bar',
+                data: {
+                    labels: dischargedPatients.map(p => p.name.split(' ')[0]),
+                    datasets: [
+                        {
+                            label: 'Estancia Real (Días)',
+                            data: dischargedPatients.map(p => p.stay),
+                            backgroundColor: '#0d6efd',
+                            borderRadius: 4,
+                        },
+                        {
+                            label: 'Estancia Ideal (Días)',
+                            data: dischargedPatients.map(p => p.idealStay),
+                            backgroundColor: '#6c757d',
+                            borderRadius: 4,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                title: (context) => dischargedPatients[context[0].dataIndex].name
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function populateFilters() {
+            const doctors = [...new Set(patientData.map(p => p.doctor))];
+            const doctorFilter = document.getElementById('doctorFilter');
+            doctors.forEach(doctor => {
+                const option = document.createElement('option');
+                option.value = doctor;
+                option.textContent = doctor;
+                doctorFilter.appendChild(option);
+            });
+        }
+
+        function renderTable(data) {
+            const tableBody = document.getElementById('patientTableBody');
+            tableBody.innerHTML = data.map(p => `
+                <tr class="hover:bg-gray-100 cursor-pointer" onclick="showPatientModal(${p.id})">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900">${p.name}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${p.age} años</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${p.doctor}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">${p.stay}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center text-2xl">${p.semaphore}</td>
+                </tr>
+            `).join('');
+             if (data.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-gray-500">No se encontraron pacientes con los filtros seleccionados.</td></tr>`;
             }
-        });
+        }
 
-        new Chart(document.getElementById('genderChart').getContext('2d'), {
-            type: 'doughnut',
-            data: { 
-                labels: ['Mujeres', 'Hombres'], 
-                datasets: [{ 
-                    data: [mujeresCount, hombresCount], 
-                    backgroundColor: ['#6366f1', '#3b82f6'], 
-                    borderColor: '#ffffff', 
-                    borderWidth: 2 
-                }] 
-            },
-            options: { 
-                responsive: true, 
-                maintainAspectRatio: false, 
-                plugins: { 
-                    legend: { 
-                        position: 'bottom' 
-                    } 
-                } 
+        function applyFilters() {
+            const doctor = document.getElementById('doctorFilter').value;
+            const semaphore = document.getElementById('semaphoreFilter').value;
+            
+            let filteredData = patientData;
+
+            if (doctor !== 'all') {
+                filteredData = filteredData.filter(p => p.doctor === doctor);
             }
-        });
+            if (semaphore !== 'all') {
+                filteredData = filteredData.filter(p => p.semaphore === semaphore);
+            }
+
+            renderTable(filteredData);
+        }
+
+        function setupEventListeners() {
+            document.getElementById('doctorFilter').addEventListener('change', applyFilters);
+            document.getElementById('semaphoreFilter').addEventListener('change', applyFilters);
+        }
+
+        function showPatientModal(patientId) {
+            const patient = patientData.find(p => p.id === patientId);
+            if (!patient) return;
+
+            document.getElementById('modalPatientName').textContent = patient.name;
+            document.getElementById('modalPatientAge').textContent = `${patient.age} años`;
+            document.getElementById('modalAdmissionDate').textContent = new Date(patient.admissionDate).toLocaleDateString('es-ES');
+            document.getElementById('modalStay').textContent = `${patient.stay} días (Ideal: ${patient.idealStay})`;
+            document.getElementById('modalDiagnosis').textContent = patient.diagnosis || "No disponible";
+            document.getElementById('modalRecommendations').textContent = patient.recommendations || "No disponible";
+
+            const modal = document.getElementById('patientModal');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.querySelector('.modal-backdrop').classList.remove('opacity-0');
+                modal.querySelector('.modal-content').classList.remove('scale-95');
+            }, 10);
+        }
+
+        function hidePatientModal() {
+            const modal = document.getElementById('patientModal');
+            modal.querySelector('.modal-backdrop').classList.add('opacity-0');
+            modal.querySelector('.modal-content').classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
     </script>
 </body>
 </html>
